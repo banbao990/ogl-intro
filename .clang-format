@@ -7,3 +7,4 @@ AllowShortFunctionsOnASingleLine: Empty
 BinPackParameters: false
 BinPackArguments: false
 AlignTrailingComments: true
+SortIncludes: false
