@@ -13,6 +13,8 @@ layout(binding = 1, std140) uniform Params {
 
 #define C_REAL g_var1.x
 #define C_IMAG g_var1.y
+#define C_CAYLEY g_var1.z
+#define DELTA_CAYLEY g_var1.w
 
 #define X_OFFSET g_var2.x
 #define Y_OFFSET g_var2.y
@@ -20,8 +22,10 @@ layout(binding = 1, std140) uniform Params {
 #define ESCAPE g_var2.w
 
 #define MAX_ITER g_var3.x
+#define MODE g_var3.y
+#define SQUARE_MODE (g_var3.z > 0)
 
-float check(float x, float y) {
+float julia_set(float x, float y) {
   for (int i = 0; i < MAX_ITER; i++) {
     // complex : x + y*i
     float x_new = x * x - y * y + C_REAL;
@@ -36,14 +40,86 @@ float check(float x, float y) {
   return 1.0f;
 }
 
+float cayley(float x, float y) {
+  // m^3 - c = 0
+  // z = m * pow(z, 1/3)
+  // m^3 - 1 = 0
+
+  float coeff = pow(C_CAYLEY, 1.0f / 3.0f);
+  x *= coeff;
+  y *= coeff;
+
+  // z^3 - 1 = (z - 1)(z^2 + z + 1)
+  // solution: z = 1, -0.5 + 0.866i, -0.5 - 0.866i
+
+  // z = x + yi
+  // iteration: z = z - f(z) / f'(z)
+  // z = z - (z^3 - 1) / (3z^2)
+  //   = (2z + 1/z^2) / 3
+  //   = (2z + 1 / (a + bi)) / 3
+  for (int i = 0; i < MAX_ITER; i++) {
+    float a = x * x - y * y;
+    float b = 2 * x * y;
+
+    float a2b2_inv = 1.0f / (a * a + b * b);
+    float x_new = 2 * x + a * a2b2_inv;
+    float y_new = 2 * y - b * a2b2_inv;
+    x = x_new / 3;
+    y = y_new / 3;
+  }
+
+  const int N = 3;
+  vec2 solu[N] = {vec2(1, 0), vec2(-0.5, 0.866), vec2(-0.5, -0.866)};
+  float dis[N] = {0, 0, 0};
+  for (int i = 0; i < N; i++) {
+    float dx = x - solu[i].x;
+    float dy = y - solu[i].y;
+    dis[i] = dx * dx + dy * dy;
+  }
+
+  // min dis index
+  float min_dis = dis[0];
+  int min_idx = 0;
+  for (int i = 1; i < N; i++) {
+    if (dis[i] < min_dis) {
+      min_dis = dis[i];
+      min_idx = i;
+    }
+  }
+
+  // < delta
+  if (min_dis > DELTA_CAYLEY * DELTA_CAYLEY) {
+    min_idx = -1;
+  }
+  return (min_idx + 1) / (1.0 * N);
+}
+
 void main() {
   ivec2 texel_coord = ivec2(gl_GlobalInvocationID.xy);
-  vec2 texel_coord_rel =
-      vec2(texel_coord) / (gl_WorkGroupSize.xy * gl_NumWorkGroups.xy);
-  // [0, 1] => [-1, 1]
-  texel_coord_rel = (texel_coord_rel * 2.0 - 1.0) * ZOOM;
+  uvec2 range = gl_WorkGroupSize.xy * gl_NumWorkGroups.xy;
 
-  float c = check(texel_coord_rel.x + X_OFFSET, texel_coord_rel.y + Y_OFFSET);
+  vec2 texel_coord_rel = vec2(texel_coord - 0.5f * range);
+
+  if (!SQUARE_MODE) {
+    range.x = min(range.x, range.y);
+    range.y = range.x;
+  }
+
+  texel_coord_rel /= range;
+
+  // [-0.5, 0.5] => [-1, 1]
+  texel_coord_rel = (texel_coord_rel * 2.0) * ZOOM;
+  const vec2 xy =
+      vec2(texel_coord_rel.x + X_OFFSET, texel_coord_rel.y + Y_OFFSET);
+
+  float c = 0.0f;
+  if (MODE == 0) {
+    // julia set
+    c = julia_set(xy.x, xy.y);
+  } else if (MODE == 1) {
+    // cayley
+    c = cayley(xy.x, xy.y);
+  }
 
   vec4 value = vec4(c, c, c, 1.0);
   imageStore(img_output, texel_coord, value);

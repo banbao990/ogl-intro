@@ -53,6 +53,9 @@ private:
         _color_attachment->height() == _screen_fb_height) {
       return;
     }
+
+    _should_update_tex = true;
+
     // use HDR
     _color_attachment = std::make_unique<Texture2D>(nullptr,
                                                     GL_FLOAT,
@@ -85,7 +88,7 @@ private:
       toggle_profiler_ui();
     }
 
-    if (ImGui::TreeNode("Julia Set")) {
+    if (ImGui::TreeNode("Graph")) {
       ImGui::PushID(id++);
       _should_update_tex |= _material->draw_ui();
       ImGui::PopID();

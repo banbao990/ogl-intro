@@ -16,6 +16,11 @@ private:
 };
 
 class JuliaSetMaterial : public IMaterial {
+private:
+  enum ImageMode { kJuliaSet = 0, kCayley = 1, kCount = 2 };
+  const char *JuliaSetMaterial::_image_mode_names[kCount] = {"Julia Set",
+                                                             "Cayley"};
+
 public:
   JuliaSetMaterial();
   void use();
@@ -31,6 +36,9 @@ private:
   // _var1
   // x = x*x + c
   float _c_real, _c_imag;
+  // z^3 - c_cayley = 0
+  float _c_cayley;
+  float _delta_cayley;
 
   // _var2
   float _cx, _cy;
@@ -39,4 +47,6 @@ private:
 
   // _var3
   int _max_iter;
+  ImageMode _image_mode{ImageMode::kCayley};
+  bool _square = false;
 };
