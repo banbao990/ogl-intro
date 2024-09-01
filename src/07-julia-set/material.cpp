@@ -3,6 +3,8 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
+// BlitMaterial
+
 BlitMaterial::BlitMaterial() {
   _program =
       Program::create_from_files("shaders/blit.vert", "shaders/blit.frag");
@@ -19,21 +21,43 @@ void BlitMaterial::use() {
   glUniform1i(_image_location, 0);
 }
 
+// JuliaSetMaterial
+
+namespace {
+struct ParamsBlock {
+  glm::vec4 _var1;
+  glm::vec4 _var2;
+  glm::ivec4 _var3;
+};
+} // namespace
+
 JuliaSetMaterial::JuliaSetMaterial() {
   _program = Program::create_compute_shader_from_file(
       "shaders/07-julia-set/sample.comp");
   auto id = _program->get();
-  _var1_location = glGetUniformLocation(id, "g_var1");
-  _var2_location = glGetUniformLocation(id, "g_var2");
-  _var3_location = glGetUniformLocation(id, "g_var3");
+
+  const int params_binding_point = 1;
+  // following 2 lines are dne in shader by (binding = 1)
+  GLuint params_index = glGetUniformBlockIndex(_program->get(), "Params");
+  glUniformBlockBinding(_program->get(), params_index, params_binding_point);
+  _params_buffer = std::make_unique<Buffer>(nullptr, sizeof(ParamsBlock));
+  glBindBufferBase(
+      GL_UNIFORM_BUFFER, params_binding_point, _params_buffer->get());
+
   reset_params();
 }
 
 void JuliaSetMaterial::use() {
   glUseProgram(_program->get());
-  glUniform4f(_var1_location, _c_real, _c_imag, 0.0f, 0.0f);
-  glUniform4f(_var2_location, _cx, _cy, _zoom, _escape);
-  glUniform4i(_var3_location, _max_iter, 0, 0, 0);
+
+  ParamsBlock params_block{};
+  params_block._var1 = glm::vec4(_c_real, _c_imag, 0.0f, 0.0f);
+  params_block._var2 = glm::vec4(_cx, _cy, _zoom, _escape);
+  params_block._var3 = glm::ivec4(_max_iter, 0, 0, 0);
+
+  glBindBuffer(GL_UNIFORM_BUFFER, _params_buffer->get());
+  glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(ParamsBlock), &params_block);
+  glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
 bool JuliaSetMaterial::draw_ui() {

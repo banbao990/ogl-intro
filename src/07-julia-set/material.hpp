@@ -26,16 +26,17 @@ public:
 
 private:
   std::unique_ptr<Program> _program;
+  std::unique_ptr<Buffer> _params_buffer;
 
-  GLint _var1_location;
+  // _var1
   // x = x*x + c
   float _c_real, _c_imag;
 
-  GLint _var2_location;
+  // _var2
   float _cx, _cy;
   float _zoom;
   float _escape;
 
-  GLint _var3_location; // TODO: add this
+  // _var3
   int _max_iter;
 };
