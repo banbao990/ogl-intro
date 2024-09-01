@@ -102,3 +102,11 @@ std::unique_ptr<Program> Program::create_from_files(const fs::path &vert_file,
 
   return std::make_unique<Program>(shaders, 2);
 }
+
+std::unique_ptr<Program>
+Program::create_compute_shader_from_file(const fs::path &comp_file) {
+  auto comp_shader = std::make_unique<Shader>(comp_file, GL_COMPUTE_SHADER);
+  GLuint shaders[] = {comp_shader->get()};
+
+  return std::make_unique<Program>(shaders, 1);
+}

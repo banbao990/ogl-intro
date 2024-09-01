@@ -30,8 +30,8 @@ public:
 
 private:
   void init() override {
-    _bolt_material = std::make_unique<BoltMaterial>();
-    _bolt_mesh = std::make_unique<BoltMesh>();
+    _material = std::make_unique<BoltMaterial>();
+    _mesh = std::make_unique<BoltMesh>();
   }
 
   void update() override {
@@ -67,7 +67,7 @@ private:
 
     if (ImGui::TreeNode("Bolt")) {
       ImGui::PushID(id++);
-      _bolt_mesh->draw_ui();
+      _mesh->draw_ui();
       ImGui::PopID();
       ImGui::TreePop();
     }
@@ -80,13 +80,13 @@ private:
     glViewport(0, 0, _screen_fb_width, _screen_fb_height);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    _bolt_material->use();
-    _bolt_mesh->draw();
+    _material->use();
+    _mesh->draw();
   }
 
 private:
-  std::unique_ptr<BoltMesh> _bolt_mesh{};
-  std::unique_ptr<BoltMaterial> _bolt_material{};
+  std::unique_ptr<BoltMesh> _mesh{};
+  std::unique_ptr<BoltMaterial> _material{};
   int _screen_fb_width{BOLT_WINDOW_HEIGHT},
       _screen_fb_height{BOLT_WINDOW_WIDTH};
 };

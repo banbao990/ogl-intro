@@ -25,6 +25,9 @@ public:
   static std::unique_ptr<Program> create_from_files(const fs::path &vert_file,
                                                     const fs::path &frag_file);
 
+  static std::unique_ptr<Program>
+  create_compute_shader_from_file(const fs::path &comp_file);
+
   GLuint get() const;
 
 private:

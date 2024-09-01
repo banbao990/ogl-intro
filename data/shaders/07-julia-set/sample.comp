@@ -1,0 +1,48 @@
+#version 430 core
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+// uniforms
+layout(binding = 0, rgba32f) uniform image2D img_output;
+
+uniform vec4 g_var1;
+uniform vec4 g_var2;
+uniform ivec4 g_var3;
+
+#define C_REAL g_var1.x
+#define C_IMAG g_var1.y
+
+#define X_OFFSET g_var2.x
+#define Y_OFFSET g_var2.y
+#define ZOOM g_var2.z
+#define ESCAPE g_var2.w
+
+#define MAX_ITER g_var3.x
+
+float check(float x, float y) {
+  for (int i = 0; i < MAX_ITER; i++) {
+    // complex : x + y*i
+    float x_new = x * x - y * y + C_REAL;
+    float y_new = 2 * x * y + C_IMAG;
+    x = x_new;
+    y = y_new;
+    if (x * x + y * y > ESCAPE) {
+      // i: [0, MAX_ITER] => [0, 1]
+      return mix(0.0f, 1.0f, float(i) / float(MAX_ITER));
+    }
+  }
+  return 1.0f;
+}
+
+void main() {
+  ivec2 texel_coord = ivec2(gl_GlobalInvocationID.xy);
+  vec2 texel_coord_rel =
+      vec2(texel_coord) / (gl_WorkGroupSize.xy * gl_NumWorkGroups.xy);
+  // [0, 1] => [-1, 1]
+  texel_coord_rel = (texel_coord_rel * 2.0 - 1.0) * ZOOM;
+
+  float c = check(texel_coord_rel.x + X_OFFSET, texel_coord_rel.y + Y_OFFSET);
+
+  vec4 value = vec4(c, c, c, 1.0);
+  imageStore(img_output, texel_coord, value);
+}

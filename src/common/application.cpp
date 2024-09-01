@@ -27,8 +27,8 @@ Application::create_window(const char *name, int width, int height) {
     throw std::runtime_error("failed to init glfw");
   }
 
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #ifdef __APPLE__ // for macos
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
