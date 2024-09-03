@@ -28,6 +28,7 @@ struct ParamsBlock {
   glm::vec4 _var1;
   glm::vec4 _var2;
   glm::ivec4 _var3;
+  glm::vec4 _var4;
 };
 } // namespace
 
@@ -55,6 +56,7 @@ void JuliaSetMaterial::use() {
   params_block._var2 = glm::vec4(_cx, _cy, _zoom, _escape);
   params_block._var3 = glm::ivec4(
       _max_iter, static_cast<int>(_image_mode), static_cast<int>(_square), 0);
+  params_block._var4 = glm::vec4(_c_real_mb, _c_imag_mb, 0, 0);
 
   glBindBuffer(GL_UNIFORM_BUFFER, _params_buffer->get());
   glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(ParamsBlock), &params_block);
@@ -77,8 +79,13 @@ bool JuliaSetMaterial::draw_ui() {
     changed |= ImGui::SliderFloat("escape", &_escape, 0.0f, 1000.0f, "%.1f");
     changed |= ImGui::SliderInt("max_iter", &_max_iter, 1, 1000);
 
-    ImGui::Text("Zoom in/out: Page Up/Down");
-    ImGui::Text("Move: Left/Right/Up/Down");
+  } else if (_image_mode == kMandelbrot) {
+    ImGui::Text("c = %.3f + %.3fi", _c_real_mb, _c_imag_mb);
+    changed |= ImGui::SliderFloat("c_real", &_c_real_mb, -1.0f, 1.0f, "%.4f");
+    changed |= ImGui::SliderFloat("c_imag", &_c_imag_mb, -1.0f, 1.0f, "%.4f");
+    changed |= ImGui::SliderFloat("escape", &_escape, 0.0f, 1000.0f, "%.1f");
+    changed |= ImGui::SliderInt("max_iter", &_max_iter, 1, 1000);
+
   } else if (_image_mode == kCayley) {
     ImGui::Text("z^3 - %.3f = 0", _c_cayley);
     changed |= ImGui::SliderFloat("c", &_c_cayley, 0.001f, 100.0f);
@@ -86,6 +93,8 @@ bool JuliaSetMaterial::draw_ui() {
     changed |= ImGui::SliderInt("max_iter", &_max_iter, 1, 1000);
   }
 
+  ImGui::Text("Zoom in/out: Page Up/Down");
+  ImGui::Text("Move: Left/Right/Up/Down");
   if (ImGui::Button("Reset")) {
     reset_params();
     changed = true;
@@ -156,4 +165,7 @@ void JuliaSetMaterial::reset_params() {
   _zoom = 1.0f;
   _escape = 100.0f;
   _max_iter = 200;
+  _square = false;
+  _c_real_mb = 0.0f;
+  _c_imag_mb = 0.0f;
 }

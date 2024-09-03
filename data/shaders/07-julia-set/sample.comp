@@ -9,6 +9,7 @@ layout(binding = 1, std140) uniform Params {
   vec4 g_var1;
   vec4 g_var2;
   ivec4 g_var3;
+  vec4 g_var4;
 };
 
 #define C_REAL g_var1.x
@@ -25,7 +26,12 @@ layout(binding = 1, std140) uniform Params {
 #define MODE g_var3.y
 #define SQUARE_MODE (g_var3.z > 0)
 
+#define C_REAL_MB g_var4.x
+#define C_IMAG_MB g_var4.y
+
 float julia_set(float x, float y) {
+  // z = z^2 + c
+  // z0 = x + yi, c = C_REAL + C_IMAG * i
   for (int i = 0; i < MAX_ITER; i++) {
     // complex : x + y*i
     float x_new = x * x - y * y + C_REAL;
@@ -34,6 +40,24 @@ float julia_set(float x, float y) {
     y = y_new;
     if (x * x + y * y > ESCAPE) {
       // i: [0, MAX_ITER] => [0, 1]
+      return mix(0.0f, 1.0f, float(i) / float(MAX_ITER));
+    }
+  }
+  return 1.0f;
+}
+
+float mandelbrot(float x, float y) {
+  // z = z^2 + c
+  // z0 = C_REAL_MB + C_IMAG_MB * i
+  // c = x + yi
+  float zr = C_REAL_MB;
+  float zi = C_IMAG_MB;
+  for (int i = 0; i < MAX_ITER; i++) {
+    float zr_new = zr * zr - zi * zi + x;
+    float zi_new = 2 * zr * zi + y;
+    zr = zr_new;
+    zi = zi_new;
+    if (zr * zr + zi * zi > ESCAPE) {
       return mix(0.0f, 1.0f, float(i) / float(MAX_ITER));
     }
   }
@@ -117,6 +141,9 @@ void main() {
     // julia set
     c = julia_set(xy.x, xy.y);
   } else if (MODE == 1) {
+    // mandelbrot
+    c = mandelbrot(xy.x, xy.y);
+  } else if (MODE == 2) {
     // cayley
     c = cayley(xy.x, xy.y);
   }
