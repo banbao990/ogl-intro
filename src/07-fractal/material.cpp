@@ -34,7 +34,7 @@ struct ParamsBlock {
 
 JuliaSetMaterial::JuliaSetMaterial() {
   _program = Program::create_compute_shader_from_file(
-      "shaders/07-julia-set/sample.comp");
+      "shaders/07-fractal/sample.comp");
   auto id = _program->get();
 
   const int params_binding_point = 1;

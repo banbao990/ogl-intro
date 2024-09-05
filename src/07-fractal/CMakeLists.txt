@@ -1,4 +1,4 @@
-set(pro_name 07_julia_set)
+set(pro_name 07_fractal)
 
 add_executable(${pro_name}
     main.cpp
