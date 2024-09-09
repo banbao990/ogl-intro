@@ -67,27 +67,10 @@ private:
         0, _color_attachment->get(), 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
   }
 
-  void draw_ui() {
-    int id = 0;
-    {
-      std::stringstream ss;
-      float frame_time = average_frame_time();
-      ss << "FPS: ";
-      if (frame_time == 0.0f) {
-        ss << "NAN";
-      } else {
-        ss << 1.0f / frame_time;
-      }
-      ss << "(" << frame_time * 1000.0f << "ms)";
-      ImGui::Text("%s", ss.str().c_str());
-    }
-    if (ImGui::Button("Screen Shot")) {
-      request_screen_shot();
-    }
-    if (ImGui::Button("Toggle Profiler")) {
-      toggle_profiler_ui();
-    }
+  void draw_ui() override {
+    Application::draw_ui();
 
+    int id = 0;
     if (ImGui::TreeNode("Graph")) {
       ImGui::PushID(id++);
       _should_update_tex |= _material->draw_ui();
@@ -124,6 +107,7 @@ private:
   int _screen_fb_width{JULIA_SET_WINDOW_HEIGHT},
       _screen_fb_height{JULIA_SET_WINDOW_WIDTH};
   bool _should_update_tex{true};
+  bool _vsync{true};
 };
 
 int main() {

@@ -2,8 +2,9 @@
 
 #include "utils.hpp"
 #include <chrono>
-#include <glm/glm.hpp>
 #include <vector>
+#include <sstream>
+#include <imgui/imgui.h>
 
 struct GLFWwindow;
 
@@ -26,6 +27,8 @@ protected:
   virtual void scroll_callback(double xoffset, double yoffset) {}
   virtual void mouse_button_callback(int button, int action, int mods) {}
   virtual void cursor_enter_callback(bool entered) {}
+
+  virtual void draw_ui();
 
   GLFWwindow *_window{};
 
@@ -56,6 +59,7 @@ private:
 
   void screen_shot();
 
+  bool _vsync = true;
   bool _need_screen_shot = false;
   bool _display_profiler = false;
   using Clock = std::chrono::high_resolution_clock;

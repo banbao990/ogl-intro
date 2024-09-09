@@ -45,26 +45,9 @@ private:
   }
 
   void draw_ui() {
-    int id = 0;
-    {
-      std::stringstream ss;
-      float frame_time = average_frame_time();
-      ss << "FPS: ";
-      if (frame_time == 0.0f) {
-        ss << "NAN";
-      } else {
-        ss << 1.0f / frame_time;
-      }
-      ss << "(" << frame_time * 1000.0f << "ms)";
-      ImGui::Text("%s", ss.str().c_str());
-    }
-    if (ImGui::Button("Screen Shot")) {
-      request_screen_shot();
-    }
-    if (ImGui::Button("Toggle Profiler")) {
-      toggle_profiler_ui();
-    }
+    Application::draw_ui();
 
+    int id = 0;
     if (ImGui::TreeNode("Bolt")) {
       ImGui::PushID(id++);
       _mesh->draw_ui();

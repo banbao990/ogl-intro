@@ -1,3 +1,8 @@
+#ifdef WIN32
+// for warning: APIENTRY redefinition
+#include <windows.h>
+#endif
+
 #include "application.hpp"
 #include "data.hpp"
 #include "utils.hpp"
@@ -88,6 +93,34 @@ Application::~Application() {
   ImGui::DestroyContext();
   glfwDestroyWindow(_window);
   glfwTerminate();
+}
+
+void Application::draw_ui() {
+  {
+    bool vc = ImGui::Checkbox("Vertical Sync", &_vsync);
+    if (vc) {
+      glfwSwapInterval(_vsync ? 1 : 0);
+    }
+  }
+
+  {
+    std::stringstream ss;
+    float frame_time = average_frame_time();
+    ss << "FPS: ";
+    if (frame_time == 0.0f) {
+      ss << "NAN";
+    } else {
+      ss << 1.0f / frame_time;
+    }
+    ss << "(" << frame_time * 1000.0f << "ms)";
+    ImGui::Text("%s", ss.str().c_str());
+  }
+  if (ImGui::Button("Screen Shot")) {
+    request_screen_shot();
+  }
+  if (ImGui::Button("Toggle Profiler")) {
+    toggle_profiler_ui();
+  }
 }
 
 float Application::average_frame_time() {

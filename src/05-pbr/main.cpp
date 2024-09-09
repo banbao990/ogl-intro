@@ -17,7 +17,9 @@
 
 class PbrApp final : public Application {
 public:
-  PbrApp() : Application("PBR", 800, 600) {}
+  PbrApp()
+      : Application("PBR", 800, 600), _screen_fb_width(800),
+        _screen_fb_height(600) {}
 
 private:
   void init() override {
@@ -121,7 +123,8 @@ private:
         calculate_env_brdf_lut();
       }
       ImGui::Text("LUT");
-      ImGui::Image(reinterpret_cast<ImTextureID>(_env_brdf_lut->get()),
+      ImGui::Image(reinterpret_cast<ImTextureID>(
+                       static_cast<uint64_t>(_env_brdf_lut->get())),
                    ImVec2(_lut_size, _lut_size));
       ImGui::PopID();
     }
@@ -133,7 +136,9 @@ private:
 
     Texture2D *color_attachments[] = {_env_brdf_lut.get()};
     auto env_brdf_lut_framebuffer = std::make_unique<Framebuffer>(
-        color_attachments, std::size(color_attachments), nullptr);
+        color_attachments,
+        static_cast<uint32_t>(std::size(color_attachments)),
+        nullptr);
 
     glBindFramebuffer(GL_FRAMEBUFFER, env_brdf_lut_framebuffer->get());
     glViewport(0, 0, _lut_size, _lut_size);
@@ -243,10 +248,10 @@ private:
                                     GL_DEPTH24_STENCIL8,
                                     GL_DEPTH_STENCIL);
     Texture2D *color_attachments[] = {_color_attachment.get()};
-    _framebuffer =
-        std::make_unique<Framebuffer>(color_attachments,
-                                      std::size(color_attachments),
-                                      _depth_stencil_attachment.get());
+    _framebuffer = std::make_unique<Framebuffer>(
+        color_attachments,
+        static_cast<uint32_t>(std::size(color_attachments)),
+        _depth_stencil_attachment.get());
   }
 
   void update() override {
