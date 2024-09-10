@@ -5,5 +5,7 @@ add_subdirectory(02-uniform)
 add_subdirectory(03-gltf)
 add_subdirectory(04-fbo)
 add_subdirectory(05-pbr)
+
 add_subdirectory(06-lightning-bolt)
 add_subdirectory(07-fractal)
+add_subdirectory(08-ssr)
