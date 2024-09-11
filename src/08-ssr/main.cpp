@@ -40,7 +40,7 @@ private:
 
     // water material
     _water_material = std::make_unique<WaterMaterial>();
-    _water_geometry = std::make_unique<WaterGeometry>(1.0f, 1.0f, 100, 100);
+    _water_geometry = std::make_unique<WaterGeometry>(10.0f, 10.0f, 100, 100);
 
     auto init_mat = [&](PbrMaterial *pbr_mat, Gltf::Material *mat) {
 #define ASSIGN_TEXTURE(name)                                                   \
@@ -129,7 +129,7 @@ private:
     if (ImGui::CollapsingHeader("Water")) {
       ImGui::PushID(id++);
       ImGui::Text("Water");
-      // TODO: add water parameters
+      _water_material->draw_ui();
       ImGui::PopID();
     }
   }
@@ -221,6 +221,7 @@ private:
     {
       MICROPROFILE_SCOPEGPUI("Water", 0x22FF22);
       MICROPROFILE_SCOPEI("Main", "Water", 0x22FF22);
+      glDisable(GL_CULL_FACE);
       glDepthMask(GL_TRUE);
       glBlendFunc(GL_ONE, GL_ZERO);
       WaterMaterial *mat = _water_material.get();
@@ -234,6 +235,8 @@ private:
       mat->light_dir_vs = glm::normalize(light_dir_vs);
       mat->use();
       _water_geometry->draw();
+      glEnable(GL_CULL_FACE);
+      glCullFace(GL_BACK);
     }
   }
 

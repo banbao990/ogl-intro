@@ -25,28 +25,34 @@ void BlitMaterial::use() {
 
 namespace {
 struct TransformBlock {
-  glm::mat4 MV;
-  glm::mat4 I_MV;
-  glm::mat4 P;
+  glm::mat4 _M;
+  glm::mat4 _MV;
+  glm::mat4 _I_MV;
+  glm::mat4 _P;
 };
 
 struct ParamsBlock {
-  glm::vec4 light_dir_vs; // use glm::vec4 for padding
+  glm::vec4 _light_dir_vs; // use glm::vec4 for padding
+  glm::vec4 _var1;
+  glm::vec4 _var2;
 };
 } // namespace
 
 WaterMaterial::WaterMaterial() {
   _program = Program::create_from_files("shaders/08-ssr/water.vert",
                                         "shaders/08-ssr/water.frag");
-  auto id = _program->get();
+  const GLuint id = _program->get();
 
-  GLuint transform_index = glGetUniformBlockIndex(_program->get(), "Transform");
-  glUniformBlockBinding(_program->get(), transform_index, 0);
-  GLuint params_index = glGetUniformBlockIndex(_program->get(), "Params");
-  glUniformBlockBinding(_program->get(), params_index, 1);
+  GLuint transform_index = glGetUniformBlockIndex(id, "Transform");
+  glUniformBlockBinding(id, transform_index, 0);
+  GLuint params_index = glGetUniformBlockIndex(id, "Params");
+  glUniformBlockBinding(id, params_index, 1);
 
   _transform_buffer = std::make_unique<Buffer>(nullptr, sizeof(TransformBlock));
   _params_buffer = std::make_unique<Buffer>(nullptr, sizeof(ParamsBlock));
+
+  _wave_tex = std::make_unique<Texture2D>("08-ssr/water2.png");
+  _wave_tex_location = glGetUniformLocation(id, "g_wave_tex");
 
   reset_params();
 }
@@ -56,9 +62,10 @@ void WaterMaterial::use() {
 
   // transform uniforms
   TransformBlock transform_block{};
-  transform_block.MV = view * model;
-  transform_block.I_MV = glm::inverse(transform_block.MV);
-  transform_block.P = projection;
+  transform_block._M = model;
+  transform_block._MV = view * model;
+  transform_block._I_MV = glm::inverse(transform_block._MV);
+  transform_block._P = projection;
 
   glBindBufferBase(GL_UNIFORM_BUFFER, 0, _transform_buffer->get());
 
@@ -68,8 +75,11 @@ void WaterMaterial::use() {
   glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
   // params uniforms
+  float time_seconds = (float)glfwGetTime(); // time in seconds
   ParamsBlock params_block{};
-  params_block.light_dir_vs = glm::vec4(light_dir_vs, 0.0f);
+  params_block._light_dir_vs = glm::vec4(light_dir_vs, 0.0f);
+  params_block._var1 = glm::vec4(_wave_speed1, _wave_speed2);
+  params_block._var2 = glm::vec4(time_seconds, _wave_strength, 0.0f, 0.0f);
 
   glBindBuffer(GL_UNIFORM_BUFFER, _params_buffer->get());
   glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(ParamsBlock), &params_block);
@@ -80,6 +90,11 @@ void WaterMaterial::use() {
   glBindBuffer(GL_UNIFORM_BUFFER, _params_buffer->get());
   glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(ParamsBlock), &params_block);
   glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+  // wave texture
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, _wave_tex->get());
+  glUniform1i(_wave_tex_location, 0);
 }
 
 bool WaterMaterial::draw_ui() {
@@ -89,6 +104,21 @@ bool WaterMaterial::draw_ui() {
     reset_params();
     changed = true;
   }
+
+  {
+    ImGui::Text("Wave Speed 1");
+    ImGui::SliderFloat("X##speed1", &_wave_speed1.x, -1.0f, 1.0f);
+    ImGui::SliderFloat("Y##speed1", &_wave_speed1.y, -1.0f, 1.0f);
+    ImGui::Text("Wave Speed 2");
+    ImGui::SliderFloat("X##speed2", &_wave_speed2.x, -1.0f, 1.0f);
+    ImGui::SliderFloat("Y##speed2", &_wave_speed2.y, -1.0f, 1.0f);
+  }
+
+  ImGui::SliderFloat("Wave Strength", &_wave_strength, 0.0f, 1.0f);
+
+  // show texture
+  ImGui::Text("Wave Texture");
+  ImGui::Image((ImTextureID)(intptr_t)_wave_tex->get(), ImVec2(128, 128));
 
   return changed;
 }
@@ -113,46 +143,11 @@ bool WaterMaterial::key_callback(int key, int scancode, int action, int mods) {
 
   bool vc = false; // value changed
 
-  // move left/right/up/down
-  float step = 10 * (1 / 800.0f) * _zoom;
-  if (s_last_key == GLFW_KEY_LEFT) {
-    _cx -= step;
-    vc = true;
-  } else if (s_last_key == GLFW_KEY_RIGHT) {
-    _cx += step;
-    vc = true;
-  }
-  if (s_last_key == GLFW_KEY_UP) {
-    _cy += step;
-    vc = true;
-  } else if (s_last_key == GLFW_KEY_DOWN) {
-    _cy -= step;
-    vc = true;
-  }
-
-  // zoom in/out
-  if (s_last_key == GLFW_KEY_PAGE_UP) {
-    _zoom *= 0.95f;
-    vc = true;
-  } else if (s_last_key == GLFW_KEY_PAGE_DOWN) {
-    _zoom *= 1.05f;
-    vc = true;
-  }
-
   return vc;
 }
 
 void WaterMaterial::reset_params() {
-  _c_real = -0.8f;
-  _c_imag = 0.156f;
-  _c_cayley = 1.0f;
-  _delta_cayley = 1.0f;
-  _cx = 0;
-  _cy = 0;
-  _zoom = 1.0f;
-  _escape = 100.0f;
-  _max_iter = 200;
-  _square = false;
-  _c_real_mb = 0.0f;
-  _c_imag_mb = 0.0f;
+  _wave_speed1 = glm::vec2(0.1f, 0.1f);
+  _wave_speed2 = glm::vec2(0.05f, 0.05f);
+  _wave_strength = 0.5f;
 }

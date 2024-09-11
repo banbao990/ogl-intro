@@ -34,22 +34,14 @@ private:
   std::unique_ptr<Buffer> _params_buffer;
   std::unique_ptr<Buffer> _transform_buffer;
 
+  GLuint _wave_tex_location;
+  std::unique_ptr<Texture2D> _wave_tex;
+
   // _var1: float4
-  // x = x*x + c
-  float _c_real, _c_imag;
-  // z^3 - c_cayley = 0
-  float _c_cayley;
-  float _delta_cayley;
+  glm::vec2 _wave_speed1;
+  glm::vec2 _wave_speed2;
 
   // _var2: float4
-  float _cx, _cy;
-  float _zoom;
-  float _escape;
-
-  // _var3: int4
-  int _max_iter;
-  bool _square;
-
-  // _var4: float4
-  float _c_real_mb, _c_imag_mb;
+  // float _time_seconds;
+  float _wave_strength;
 };
