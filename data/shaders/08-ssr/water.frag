@@ -11,18 +11,23 @@ layout(std140) uniform Params {
   vec3 g_light_dir_vs;
   vec4 g_var1;
   vec4 g_var2;
+  ivec4 g_var3;
 };
 
 #define g_wave_speed1 g_var1.xy
 #define g_wave_speed2 g_var1.zw
 #define g_time g_var2.x
 #define g_wave_strength g_var2.y
+#define g_refraction_distortion_strength g_var2.z
+#define g_width g_var3.x
+#define g_height g_var3.y
 
 // Uniforms End
 
 layout(location = 0) out vec4 frag_color_out;
 
 uniform sampler2D g_wave_tex;
+uniform sampler2D g_depth_tex;
 
 vec3 safe_normalize(vec3 v) {
   return dot(v, v) == 0 ? v : normalize(v);
@@ -41,7 +46,17 @@ void main() {
   vec2 distortion2 = texture2D(g_wave_tex, wave_uv_vs.zw).rr * 2.0 - one.xx;
   vec2 distortion = (distortion1 + distortion2 * 0.5);
   distortion *= g_wave_strength;
-  // TODO: depth test
+
+  // TODO: depth test, why need this
+  // vec2 screen_uv = vec2(gl_FragCoord.x / g_width, gl_FragCoord.y / g_height)
+  // +
+  //                  g_refraction_distortion_strength * distortion;
+  // float depth_record = texture2D(g_depth_tex, screen_uv).r; // MVP
+  // float depth = gl_FragCoord.z;
+  // if (depth_record > depth) {
+  //   distortion = vec2(0.0);
+  // }
+
   n = safe_normalize(n + vec3(distortion.x, 0.0, distortion.y));
 
   // red

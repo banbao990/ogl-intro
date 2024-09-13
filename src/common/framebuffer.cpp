@@ -2,8 +2,12 @@
 
 Framebuffer::Framebuffer(Texture2D **color_attachments,
                          uint32_t color_attachment_count,
-                         Texture2D *depth_stencil_attachment) {
-  init(color_attachments, color_attachment_count, depth_stencil_attachment);
+                         Texture2D *depth_stencil_attachment,
+                         bool no_stencil) {
+  init(color_attachments,
+       color_attachment_count,
+       depth_stencil_attachment,
+       no_stencil);
 }
 
 GLuint Framebuffer::get() const {
@@ -12,7 +16,8 @@ GLuint Framebuffer::get() const {
 
 void Framebuffer::init(Texture2D **color_attachments,
                        uint32_t color_attachment_count,
-                       Texture2D *depth_stencil_attachment) {
+                       Texture2D *depth_stencil_attachment,
+                       bool no_stencil) {
   glGenFramebuffers(1, &_id);
   glBindFramebuffer(GL_FRAMEBUFFER, _id);
 
@@ -26,10 +31,17 @@ void Framebuffer::init(Texture2D **color_attachments,
 
   if (depth_stencil_attachment != nullptr) {
     glFramebufferTexture2D(GL_FRAMEBUFFER,
-                           GL_DEPTH_STENCIL_ATTACHMENT,
+                           no_stencil ? GL_DEPTH_ATTACHMENT
+                                      : GL_DEPTH_STENCIL_ATTACHMENT,
                            GL_TEXTURE_2D,
                            depth_stencil_attachment->get(),
                            0);
+  }
+
+  // only depth or stencil attachment
+  if (depth_stencil_attachment != nullptr && color_attachment_count == 0) {
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
   }
 
   if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {

@@ -68,7 +68,7 @@ Application::create_window(const char *name, int width, int height) {
   ImGui::StyleColorsDark();
 
   ImGui_ImplGlfw_InitForOpenGL(window, true);
-  ImGui_ImplOpenGL3_Init("#version 150");
+  ImGui_ImplOpenGL3_Init("#version 460 core");
 
   return window;
 }

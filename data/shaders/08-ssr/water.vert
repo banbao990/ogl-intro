@@ -26,6 +26,7 @@ layout(std140) uniform Params {
   vec3 g_light_dir_vs;
   vec4 g_var1;
   vec4 g_var2;
+  ivec4 g_var3;
 };
 
 #define g_wave_speed1 g_var1.xy

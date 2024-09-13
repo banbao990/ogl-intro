@@ -40,7 +40,8 @@ private:
 
     // water material
     _water_material = std::make_unique<WaterMaterial>();
-    _water_geometry = std::make_unique<WaterGeometry>(10.0f, 10.0f, 100, 100);
+    _water_geometry = std::make_unique<WaterGeometry>(1.0f, 1.0f, 100, 100);
+    _depth_material = std::make_unique<DepthMaterial>();
 
     auto init_mat = [&](PbrMaterial *pbr_mat, Gltf::Material *mat) {
 #define ASSIGN_TEXTURE(name)                                                   \
@@ -205,7 +206,7 @@ private:
       MICROPROFILE_SCOPEI("Main", "Transparent Tint", 0x17AAFF);
       glEnable(GL_BLEND);
       // disable z-write for transparent objects
-      glDepthMask(GL_FALSE);
+      glDepthMask(GL_FALSE); // can be read, but not written
       glBlendFunc(GL_ZERO, GL_SRC_COLOR);
       // tint objects covered by transparent ones
       draw_mode(PbrMaterial::Blend, _base_color_materials);
@@ -219,23 +220,58 @@ private:
     }
 
     {
+      MICROPROFILE_SCOPEGPUI("Depth", 0x25FF22);
+      MICROPROFILE_SCOPEI("Main", "Depth", 0x25FF22);
+      // copy depth to new framebuffer
+      glBindFramebuffer(GL_READ_FRAMEBUFFER, _framebuffer->get());
+      glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _framebuffer_2_depth->get());
+      glBlitFramebuffer(0,
+                        0,
+                        _screen_fb_width,
+                        _screen_fb_height,
+                        0,
+                        0,
+                        _screen_fb_width,
+                        _screen_fb_height,
+                        GL_DEPTH_BUFFER_BIT,
+                        GL_NEAREST);
+    }
+
+    {
+      MICROPROFILE_SCOPEGPUI("Water Depth", 0x23FF23);
+      MICROPROFILE_SCOPEI("Main", "Water Depth", 0x23FF23);
+      glBindFramebuffer(GL_FRAMEBUFFER, _framebuffer_2_depth->get());
+
+      glDepthMask(GL_TRUE);
+      glDrawBuffer(GL_NONE);
+      _depth_material->model = _water_geometry->transform();
+      _depth_material->view = view;
+      _depth_material->projection = projection;
+      _depth_material->use();
+      _water_geometry->draw();
+      glDrawBuffer(GL_COLOR_ATTACHMENT0);
+    }
+
+    {
       MICROPROFILE_SCOPEGPUI("Water", 0x22FF22);
       MICROPROFILE_SCOPEI("Main", "Water", 0x22FF22);
+      glBindFramebuffer(GL_FRAMEBUFFER, _framebuffer->get());
       glDisable(GL_CULL_FACE);
-      glDepthMask(GL_TRUE);
+      glDepthMask(GL_FALSE);
+      // glDisable(GL_DEPTH_TEST);
       glBlendFunc(GL_ONE, GL_ZERO);
-      WaterMaterial *mat = _water_material.get();
-      mat->model = _water_geometry->transform();
-      mat->view = view;
-      mat->projection = projection;
-
+      _water_material->model = _water_geometry->transform();
+      _water_material->view = view;
+      _water_material->projection = projection;
+      _water_material->set_depth_tex(_depth_attachment_2_depth);
       glm::vec3 light_dir_ws = polar_to_cartesian(_light_yaw, _light_pitch);
       glm::vec3 light_dir_vs = view * glm::vec4(light_dir_ws, 0.0f);
 
-      mat->light_dir_vs = glm::normalize(light_dir_vs);
-      mat->use();
+      _water_material->light_dir_vs = glm::normalize(light_dir_vs);
+      _water_material->use();
       _water_geometry->draw();
       glEnable(GL_CULL_FACE);
+      glEnable(GL_DEPTH_TEST);
       glCullFace(GL_BACK);
     }
   }
@@ -277,6 +313,19 @@ private:
         color_attachments,
         static_cast<uint32_t>(std::size(color_attachments)),
         _depth_stencil_attachment.get());
+
+    // depth
+    // [Banbao] only depth_stencil_attachment is invalid
+    _depth_attachment_2_depth = std::make_shared<Texture2D>(nullptr,
+                                                            GL_FLOAT,
+                                                            _screen_fb_width,
+                                                            _screen_fb_height,
+                                                            GL_DEPTH_COMPONENT,
+                                                            GL_DEPTH_COMPONENT);
+    _framebuffer_2_depth = std::make_unique<Framebuffer>(
+        nullptr, 0, _depth_attachment_2_depth.get(), true);
+
+    _water_material->update_window_size(_screen_fb_width, _screen_fb_height);
   }
 
   void update() override {
@@ -301,6 +350,9 @@ private:
   std::unique_ptr<Texture2D> _depth_stencil_attachment{};
   std::unique_ptr<Framebuffer> _framebuffer{};
 
+  std::shared_ptr<Texture2D> _depth_attachment_2_depth{};
+  std::unique_ptr<Framebuffer> _framebuffer_2_depth{};
+
   // LUT (look up table) of pre-integrated BRDF
   std::unique_ptr<PrecomputeEnvBrdfMaterial> _env_brdf_material{};
   int _lut_size = 256;
@@ -312,6 +364,7 @@ private:
 
   std::unique_ptr<WaterMaterial> _water_material;
   std::unique_ptr<WaterGeometry> _water_geometry;
+  std::unique_ptr<DepthMaterial> _depth_material;
 };
 
 int main() {

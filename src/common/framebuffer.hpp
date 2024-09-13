@@ -5,7 +5,8 @@ class Framebuffer {
 public:
   Framebuffer(Texture2D **color_attachments,
               uint32_t color_attachment_count,
-              Texture2D *depth_stencil_attachment);
+              Texture2D *depth_stencil_attachment,
+              bool no_stencil = false);
 
   ~Framebuffer();
 
@@ -16,5 +17,6 @@ private:
 
   void init(Texture2D **color_attachments,
             uint32_t color_attachment_count,
-            Texture2D *depth_stencil_attachment);
+            Texture2D *depth_stencil_attachment,
+            bool no_stencil);
 };
