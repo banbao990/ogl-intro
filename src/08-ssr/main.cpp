@@ -169,6 +169,7 @@ private:
     auto draw_mode =
         [&](PbrMaterial::Mode mode,
             const std::vector<std::unique_ptr<PbrMaterial>> &materials) {
+          return; // TODO: remove this line
           for (auto &draw : _scene->draws) {
             for (auto &prim : _scene->meshes[draw.index]) {
               auto *mat = materials[prim.material].get();

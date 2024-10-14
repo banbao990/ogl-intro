@@ -102,12 +102,10 @@ private:
   std::unique_ptr<JuliaSetMaterial> _material{};
   std::unique_ptr<BlitMaterial> _blit_material{};
   std::unique_ptr<Renderer> _renderer{};
-  std::unique_ptr<Framebuffer> _framebuffer{};
   std::unique_ptr<Texture2D> _color_attachment{};
   int _screen_fb_width{JULIA_SET_WINDOW_HEIGHT},
       _screen_fb_height{JULIA_SET_WINDOW_WIDTH};
   bool _should_update_tex{true};
-  bool _vsync{true};
 };
 
 int main() {

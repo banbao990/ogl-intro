@@ -9,3 +9,5 @@ add_subdirectory(05-pbr)
 add_subdirectory(06-lightning-bolt)
 add_subdirectory(07-fractal)
 add_subdirectory(08-ssr)
+
+add_subdirectory(09-kernel)
