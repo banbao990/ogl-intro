@@ -55,12 +55,17 @@ private:
 
   void update_frame_buffer() {
     glfwGetFramebufferSize(_window, &_screen_fb_width, &_screen_fb_height);
+
     // make the size of offscreen buffer matches the screen's
     if (_color_attachment != nullptr &&
         _color_attachment->width() == _screen_fb_width &&
         _color_attachment->height() == _screen_fb_height) {
       return;
     }
+
+    // resize
+    _material_new_center->resize(_screen_fb_width, _screen_fb_height);
+    _material_old_center->resize(_screen_fb_width, _screen_fb_height);
 
     // use HDR
     _color_attachment = std::make_unique<Texture2D>(nullptr,
@@ -108,6 +113,8 @@ private:
     glBindFramebuffer(GL_FRAMEBUFFER, _framebuffer->get());
     glDisable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE);
 
     if (_kernel_type == KernelType::NEW_CENTER) {
       _material_new_center->use();

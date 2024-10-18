@@ -37,7 +37,8 @@ void KernelNewCenterMaterial::use() {
   glUseProgram(_program->get());
 
   ParamsBlock params_block{};
-  params_block._var1 = glm::ivec4(_kernel_size, 0, 0, 0);
+  params_block._var1 =
+      glm::ivec4(_kernel_size, _width, _height, (int)_random_kernel_size);
 
   glBindBuffer(GL_UNIFORM_BUFFER, _params_buffer->get());
   glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(ParamsBlock), &params_block);
@@ -59,6 +60,8 @@ bool KernelNewCenterMaterial::draw_ui() {
     ImGui::Text("Kernel Size: %d x %d", d, d);
   }
 
+  ImGui::Checkbox("Random Kernel Size", &_random_kernel_size);
+
   ImGui::PopID();
   return changed;
 }
@@ -67,8 +70,14 @@ void KernelNewCenterMaterial::draw() {
   _quad->draw();
 }
 
+void KernelNewCenterMaterial::resize(int width, int height) {
+  _width = width;
+  _height = height;
+}
+
 void KernelNewCenterMaterial::reset_params() {
   _kernel_size = 0;
+  _random_kernel_size = false;
 }
 
 // KernelOldCenterMaterial
@@ -91,9 +100,7 @@ KernelOldCenterMaterial::KernelOldCenterMaterial() {
 
   // TODO: draw a big triangle that cover the full screen
   std::vector<Mesh::Vertex> vertices = {
-      {{-1.0f, -1.0f, 0.0f}, {}, {}, {0.0f, 0.0f}}, // left-down
-      {{3.0f, -1.0f, 0.0f}, {}, {}, {2.0f, 0.0f}},  // right-down
-      {{-1.0f, 3.0f, 0.0f}, {}, {}, {0.0f, 2.0f}},  // left-up
+      {{0.0f, 0.0f, 0.0f}, {}, {}, {0.5f, 0.5f}}, // center
   };
   _quad = std::make_unique<Mesh>(
       vertices.data(), (uint32_t)vertices.size(), nullptr, 0);
@@ -105,7 +112,8 @@ void KernelOldCenterMaterial::use() {
   glUseProgram(_program->get());
 
   ParamsBlock params_block{};
-  params_block._var1 = glm::ivec4(_kernel_size, 0, 0, 0);
+  params_block._var1 =
+      glm::ivec4(_kernel_size, _width, _height, (int)_random_kernel_size);
 
   glBindBuffer(GL_UNIFORM_BUFFER, _params_buffer->get());
   glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(ParamsBlock), &params_block);
@@ -127,14 +135,24 @@ bool KernelOldCenterMaterial::draw_ui() {
     ImGui::Text("Kernel Size: %d x %d", d, d);
   }
 
+  ImGui::Checkbox("Random Kernel Size", &_random_kernel_size);
+
   ImGui::PopID();
   return changed;
 }
 
 void KernelOldCenterMaterial::draw() {
-  _quad->draw();
+  glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
+  glPointSize(1.0f); // size is the sidelength of the point
+  _quad->draw_instance(_width * _height, GL_POINTS);
+}
+
+void KernelOldCenterMaterial::resize(int width, int height) {
+  _width = width;
+  _height = height;
 }
 
 void KernelOldCenterMaterial::reset_params() {
   _kernel_size = 0;
+  _random_kernel_size = false;
 }

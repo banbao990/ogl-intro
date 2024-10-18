@@ -43,7 +43,8 @@ public:
        const uint32_t *indices,
        uint32_t index_count);
 
-  void draw();
+  void draw(GLenum draw_mode = GL_TRIANGLES);
+  void draw_instance(uint32_t instance_count, GLenum draw_mode = GL_TRIANGLES);
 
 private:
   uint32_t _draw_count = 0;

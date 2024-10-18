@@ -15,6 +15,7 @@ public:
   void use();
   bool draw_ui();
   void draw();
+  void resize(int width, int height);
 
   void reset_params();
 
@@ -26,6 +27,9 @@ private:
 
   // ivec4
   int _kernel_size; // r * 2 + 1
+  int _width;
+  int _height;
+  bool _random_kernel_size;
 };
 
 class KernelOldCenterMaterial : public IMaterial {
@@ -40,6 +44,7 @@ public:
   bool draw_ui();
   void draw();
 
+  void resize(int width, int height);
   void reset_params();
 
 private:
@@ -50,4 +55,7 @@ private:
 
   // ivec4
   int _kernel_size; // r * 2 + 1
+  int _width;
+  int _height;
+  bool _random_kernel_size;
 };

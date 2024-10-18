@@ -11,13 +11,17 @@ layout(std140) uniform Params {
 };
 
 #define g_kernel_size g_var1.x
+#define g_width g_var1.y
+#define g_height g_var1.z
+#define g_random_ks g_var.w
 
 vec3 kernel(ivec2 coord) {
   vec3 sum = vec3(0.0);
   for (int i = -g_kernel_size; i <= g_kernel_size; i++) {
     for (int j = -g_kernel_size; j <= g_kernel_size; j++) {
-      sum += texture(tex_input, uv_fs + ivec2(i, j) / vec2(800, 800)).rgb;
-      // sum += texelFetch(tex_input, coord + ivec2(i,j), 0).rgb;
+      // sum += texture(tex_input, uv_fs + ivec2(i, j) / vec2(g_width,
+      // g_height)).rgb;
+      sum += texelFetch(tex_input, coord + ivec2(i, j), 0).rgb;
     }
   }
   int total = (2 * g_kernel_size + 1) * (2 * g_kernel_size + 1);

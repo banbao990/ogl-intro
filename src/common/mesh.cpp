@@ -71,15 +71,29 @@ Mesh::Mesh(const Vertex *vertices,
 #undef ENABLE_LOCATION
 }
 
-void Mesh::draw() {
+void Mesh::draw(GLenum draw_mode) {
   if (_draw_count == 0) {
     return;
   }
   glBindVertexArray(_vao->get());
   if (_index_buffer != nullptr) {
-    glDrawElements(
-        GL_TRIANGLES, (GLsizei)_draw_count, GL_UNSIGNED_INT, nullptr);
+    glDrawElements(draw_mode, (GLsizei)_draw_count, GL_UNSIGNED_INT, nullptr);
   } else {
-    glDrawArrays(GL_TRIANGLES, 0, (GLsizei)_draw_count);
+    glDrawArrays(draw_mode, 0, (GLsizei)_draw_count);
+  }
+}
+void Mesh::draw_instance(uint32_t instance_count, GLenum draw_mode) {
+  if (_draw_count == 0) {
+    return;
+  }
+  glBindVertexArray(_vao->get());
+  if (_index_buffer != nullptr) {
+    glDrawElementsInstanced(draw_mode,
+                            (GLsizei)_draw_count,
+                            GL_UNSIGNED_INT,
+                            nullptr,
+                            instance_count);
+  } else {
+    glDrawArraysInstanced(draw_mode, 0, (GLsizei)_draw_count, instance_count);
   }
 }
