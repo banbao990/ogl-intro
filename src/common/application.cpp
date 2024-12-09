@@ -90,17 +90,27 @@ Application::Application(const char *name, int width, int height)
 
 Application::~Application() {
   MicroProfileShutdown();
+  ImGui_ImplOpenGL3_Shutdown();
+  ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();
   glfwDestroyWindow(_window);
   glfwTerminate();
 }
 
 void Application::draw_ui() {
+  ImGuiIO &io = ImGui::GetIO();
+
   {
     bool vc = ImGui::Checkbox("Vertical Sync", &_vsync);
     if (vc) {
       glfwSwapInterval(_vsync ? 1 : 0);
     }
+  }
+
+  {
+    ImGui::CheckboxFlags("Multiple Views[Slower when On]",
+                         &io.ConfigFlags,
+                         ImGuiConfigFlags_ViewportsEnable);
   }
 
   {
@@ -136,6 +146,8 @@ float Application::average_frame_time() {
 void Application::run() {
   init();
 
+  ImGuiIO &io = ImGui::GetIO();
+
   while (!glfwWindowShouldClose(_window)) {
     _frame_time_samples.push(Clock::now());
     glfwPollEvents();
@@ -163,6 +175,13 @@ void Application::run() {
     ImGui::Render();
     glViewport(0, 0, fb_width, fb_height);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+      GLFWwindow *backup_current_context = glfwGetCurrentContext();
+      ImGui::UpdatePlatformWindows();
+      ImGui::RenderPlatformWindowsDefault();
+      glfwMakeContextCurrent(backup_current_context);
+    }
 
     glfwSwapBuffers(_window);
   }

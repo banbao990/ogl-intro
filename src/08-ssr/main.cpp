@@ -122,8 +122,7 @@ private:
         calculate_env_brdf_lut();
       }
       ImGui::Text("LUT");
-      ImGui::Image(reinterpret_cast<ImTextureID>(
-                       static_cast<uint64_t>(_env_brdf_lut->get())),
+      ImGui::Image(static_cast<ImTextureID>(_env_brdf_lut->get()),
                    ImVec2(_lut_size, _lut_size));
       ImGui::PopID();
     }
