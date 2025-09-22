@@ -26,8 +26,10 @@
 #define MICROPROFILEDRAW_IMPL
 #include <microprofiledraw.h>
 
-GLFWwindow *
-Application::create_window(const char *name, int width, int height) {
+GLFWwindow *Application::create_window(const char *name,
+                                       int width,
+                                       int height,
+                                       bool fix_size) {
   if (glfwInit() == GLFW_FALSE) {
     throw std::runtime_error("failed to init glfw");
   }
@@ -38,6 +40,11 @@ Application::create_window(const char *name, int width, int height) {
 #ifdef __APPLE__ // for macos
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
+
+  if (fix_size) {
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+  }
+
   GLFWwindow *window = glfwCreateWindow(width, height, name, nullptr, nullptr);
   if (!window) {
     throw std::runtime_error("failed to create window");
@@ -73,9 +80,9 @@ Application::create_window(const char *name, int width, int height) {
   return window;
 }
 
-Application::Application(const char *name, int width, int height)
+Application::Application(const char *name, int width, int height, bool fix_size)
     : _frame_time_samples(30) {
-  _window = create_window(name, width, height);
+  _window = create_window(name, width, height, fix_size);
 
   MicroProfileOnThreadCreate("Main");
   MicroProfileGpuInitGL();
@@ -318,6 +325,14 @@ void ModelViewerCamera::draw_ui() {
   ImGui::SliderFloat("Focus Height", &_focus_height, -3.0f, 3.0f);
   ImGui::SliderFloat("Distance", &_distance, 0.5f, 30.0f);
 }
+
+ModelViewerCamera::ModelViewerCamera(float focus_height,
+                                     float field_of_view,
+                                     float pitch,
+                                     float yaw,
+                                     float distance)
+    : _focus_height(focus_height), _field_of_view(field_of_view), _pitch(pitch),
+      _yaw(yaw), _distance(distance) {}
 
 glm::vec3 ModelViewerCamera::position() const {
   return _distance * polar_to_cartesian(_yaw, _pitch) +

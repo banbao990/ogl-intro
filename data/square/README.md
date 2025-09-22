@@ -1,0 +1,1 @@
++ The texture is located at `../texture.jpg`.

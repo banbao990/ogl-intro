@@ -11,3 +11,5 @@ add_subdirectory(07-fractal)
 add_subdirectory(08-ssr)
 
 add_subdirectory(09-kernel)
+
+add_subdirectory(10-vrs)

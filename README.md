@@ -1,7 +1,5 @@
 # OpenGL简介
 
-2021&2022年春季学期北京大学本科生图形学课程的样例代码。
-
 ![screenshot](data/screenshot.png)
 
 ## 功能

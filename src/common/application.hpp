@@ -10,7 +10,7 @@ struct GLFWwindow;
 
 class Application {
 public:
-  Application(const char *name, int width, int height);
+  Application(const char *name, int width, int height, bool fix_size = false);
   virtual ~Application();
 
   void run();
@@ -36,7 +36,8 @@ private:
   [[nodiscard]] bool should_draw_profiler_ui() const;
   void draw_profiler_ui() const;
 
-  GLFWwindow *create_window(const char *name, int width, int height);
+  GLFWwindow *
+  create_window(const char *name, int width, int height, bool fix_size);
 
   static void window_key_callback(
       GLFWwindow *window, int key, int scancode, int action, int mods);
@@ -69,6 +70,13 @@ private:
 
 class ModelViewerCamera {
 public:
+  ModelViewerCamera() = default;
+  ModelViewerCamera(float focus_height,
+                    float field_of_view,
+                    float pitch,
+                    float yaw,
+                    float distance);
+
   void draw_ui();
 
   glm::mat4 view() const;

@@ -39,7 +39,6 @@ private:
     _renderer = std::make_unique<Renderer>();
 
     const char *tex_name = "texture.jpg";
-    // const char *tex_name = "09-kernel/2023-shu-zhen-shu-meng.jpg";
     _tex_input = std::make_unique<Texture2D>(tex_name);
     _material_new_center->main_tex = _tex_input.get();
     _material_old_center->main_tex = _tex_input.get();
