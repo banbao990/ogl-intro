@@ -7,6 +7,7 @@
 #include <imgui/imgui.h>
 #include <iostream>
 #include <tiny_gltf.h>
+#include <set>
 #include <vector>
 
 class VRSTexture {
@@ -39,11 +40,19 @@ public:
                     GL_RED_INTEGER,
                     GL_UNSIGNED_BYTE,
                     data.data());
+    glShadingRateImageBarrierNV(true);
     glBindTexture(GL_TEXTURE_2D, 0);
   }
 
   GLuint tex() const {
     return _tex;
+  }
+
+  int width() const {
+    return _width;
+  }
+  int height() const {
+    return _height;
   }
 
 private:
@@ -53,7 +62,8 @@ private:
 
 class VRSApp final : public Application {
 public:
-  VRSApp() : Application("Variable Rate Shading", 1024, 1024) {} // fixed size
+  // fixed size
+  VRSApp() : Application("Variable Rate Shading", 1024, 1024, true) {}
   ~VRSApp() {
     // delete _vrs_types
     for (int i = 0; i < _vrs_types_num; i++) {
@@ -86,18 +96,18 @@ private:
 
     // setup palette
     std::vector<GLenum> rates = {
-        GL_SHADING_RATE_NO_INVOCATIONS_NV,
-        GL_SHADING_RATE_1_INVOCATION_PER_PIXEL_NV,
-        GL_SHADING_RATE_1_INVOCATION_PER_1X2_PIXELS_NV,
-        GL_SHADING_RATE_1_INVOCATION_PER_2X1_PIXELS_NV,
-        GL_SHADING_RATE_1_INVOCATION_PER_2X2_PIXELS_NV,
-        GL_SHADING_RATE_1_INVOCATION_PER_2X4_PIXELS_NV,
-        GL_SHADING_RATE_1_INVOCATION_PER_4X2_PIXELS_NV,
-        GL_SHADING_RATE_1_INVOCATION_PER_4X4_PIXELS_NV,
-        GL_SHADING_RATE_2_INVOCATIONS_PER_PIXEL_NV,
-        GL_SHADING_RATE_4_INVOCATIONS_PER_PIXEL_NV,
-        GL_SHADING_RATE_8_INVOCATIONS_PER_PIXEL_NV,
-        GL_SHADING_RATE_16_INVOCATIONS_PER_PIXEL_NV,
+        GL_SHADING_RATE_NO_INVOCATIONS_NV,              // 0 // h=1,w=2
+        GL_SHADING_RATE_1_INVOCATION_PER_PIXEL_NV,      // 1
+        GL_SHADING_RATE_1_INVOCATION_PER_1X2_PIXELS_NV, // 2 (1+h)
+        GL_SHADING_RATE_1_INVOCATION_PER_2X1_PIXELS_NV, // 3 (1+w)
+        GL_SHADING_RATE_1_INVOCATION_PER_2X2_PIXELS_NV, // 4 (1+w+h)
+        GL_SHADING_RATE_1_INVOCATION_PER_2X4_PIXELS_NV, // 5 (1+w+2h)
+        GL_SHADING_RATE_1_INVOCATION_PER_4X2_PIXELS_NV, // 6 (1+2w+h)
+        GL_SHADING_RATE_1_INVOCATION_PER_4X4_PIXELS_NV, // 7 (1+2w+2h)
+        GL_SHADING_RATE_2_INVOCATIONS_PER_PIXEL_NV,     // 8
+        GL_SHADING_RATE_4_INVOCATIONS_PER_PIXEL_NV,     // 9
+        GL_SHADING_RATE_8_INVOCATIONS_PER_PIXEL_NV,     // 10
+        GL_SHADING_RATE_16_INVOCATIONS_PER_PIXEL_NV,    // 11
     };
     std::vector<std::string> vrs_types = {
         "NO_INVOCATIONS",
@@ -186,14 +196,66 @@ private:
     // get uniform location by name
     _transform_location = glGetUniformLocation(_program->get(), "transform");
     _image_location = glGetUniformLocation(_program->get(), "base_color");
+    _vrs_visualize_location =
+        glGetUniformLocation(_program->get(), "vrs_visualize");
   }
 
   void draw_ui() {
     Application::draw_ui();
     int vrs_type = _vrs_data[0];
-    if (ImGui::Combo("vrs type", &vrs_type, _vrs_types, (int)_vrs_types_num)) {
-      std::fill(_vrs_data.begin(), _vrs_data.end(), uint8_t(vrs_type));
-      _vrs_texture->update(_vrs_data);
+    ImGui::Checkbox("Visualize VRS", &_vrs_visualize);
+    ImGui::Checkbox("Track Mouse", &_vrs_track_mouse);
+    if (_vrs_track_mouse) {
+      static ImVec2 last_mouse{0, 0};
+      ImVec2 mouse = ImGui::GetMousePos();
+      const int tex_width = _vrs_texture->width();
+      const int tex_height = _vrs_texture->height();
+      // flip y
+      mouse.y = tex_height * _vrs_texel_height - mouse.y;
+      ImGui::Text("Mouse: (%.1f, %.1f)", mouse.x, mouse.y);
+      // do not need change if mouse not moved
+      if (!(mouse.x == last_mouse.x && mouse.y == last_mouse.y)) {
+        last_mouse = mouse;
+
+        for (int y = 0; y < tex_height; y++) {
+          for (int x = 0; x < tex_width; x++) {
+            float dx = std::abs((x + 0.5) * _vrs_texel_width - mouse.x);
+            float dy = std::abs((y + 0.5) * _vrs_texel_height - mouse.y);
+            // 0,1,2,3,4
+            int r = std::clamp(int(std::sqrt(dx * dx + dy * dy) / 100), 0, 4);
+            // 0: 1x1(1)
+            // 1: 1x2(2), 2x1(3)
+            // 2: 2x2(4)
+            // 3: 2x4(5), 4x2(6)
+            // 4: 4x4(7)
+            int vrs_type = 7; // 4x4
+            if (r == 0) {
+              vrs_type = 1; // 1x1
+            } else if (r == 1) {
+              vrs_type = (dx > dy) ? 3 : 2; // 1x2 or 2x1
+            } else if (r == 2) {
+              vrs_type = 4; // 2x2
+            } else if (r == 3) {
+              vrs_type = (dx > dy) ? 6 : 5; // 4x2 or 2x4
+            }
+            _vrs_data[y * tex_width + x] = uint8_t(vrs_type);
+          }
+        }
+        // // output the unqiue vrs types
+        // std::set<int> unique_types(_vrs_data.begin(), _vrs_data.end());
+        // std::cout << "Unique VRS types: ";
+        // for (auto t : unique_types) {
+        //  std::cout << t << " ";
+        // }
+        // std::cout << std::endl;
+        _vrs_texture->update(_vrs_data);
+      }
+    } else {
+      if (ImGui::Combo(
+              "vrs type", &vrs_type, _vrs_types, (int)_vrs_types_num)) {
+        std::fill(_vrs_data.begin(), _vrs_data.end(), uint8_t(vrs_type));
+        _vrs_texture->update(_vrs_data);
+      }
     }
 
     ImGui::Text("Camera");
@@ -236,6 +298,7 @@ private:
     for (auto &draw : _scene->draws) {
       auto transform = projection * view * draw.transform;
       glUniformMatrix4fv(_transform_location, 1, false, (GLfloat *)&transform);
+      glUniform1i(_vrs_visualize_location, _vrs_visualize ? 1 : 0);
       for (auto &prim : _scene->meshes[draw.index]) {
         auto *mat = _scene->materials[prim.material].get();
         auto *base_tex = _scene->textures[mat->base_color].get();
@@ -276,12 +339,15 @@ private:
 
   GLint _transform_location;
   GLint _image_location;
+  GLint _vrs_visualize_location;
 
   GLint _vrs_texel_width, _vrs_texel_height;
   std::unique_ptr<VRSTexture> _vrs_texture;
   std::vector<uint8_t> _vrs_data;
   char **_vrs_types;
   int _vrs_types_num{0};
+  bool _vrs_track_mouse{false};
+  bool _vrs_visualize{false};
 
   // Note that this extension requires the use of a framebuffer object; the
   // shading rate image and related state are ignored when rendering to the
