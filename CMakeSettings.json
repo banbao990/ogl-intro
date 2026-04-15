@@ -1,9 +1,9 @@
-﻿{
+{
     "configurations": [
         {
             "name": "x64-Release",
-            "generator": "Ninja",
-            "configurationType": "RelWithDebInfo",
+            "generator": "Visual Studio 17 2022",
+            "configurationType": "Release",
             "buildRoot": "${projectDir}\\out\\build\\${name}",
             "installRoot": "${projectDir}\\out\\install\\${name}",
             "cmakeCommandArgs": "",
@@ -13,7 +13,7 @@
         },
         {
             "name": "x64-Debug",
-            "generator": "Ninja",
+            "generator": "Visual Studio 17 2022",
             "configurationType": "Debug",
             "buildRoot": "${projectDir}\\out\\build\\${name}",
             "installRoot": "${projectDir}\\out\\install\\${name}",

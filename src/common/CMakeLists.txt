@@ -18,6 +18,11 @@ add_library(common
         utils.hpp
         utils.cpp
         profile.h
+        camera/camera.hpp
+        camera/model_viewer_camera.hpp
+        camera/model_viewer_camera.cpp
+        camera/fps_camera.hpp
+        camera/fps_camera.cpp
         )
 
 target_link_libraries(common PUBLIC
