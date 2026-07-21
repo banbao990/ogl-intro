@@ -1,0 +1,49 @@
+#version 430 core
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+layout(binding = 0) uniform sampler2D g_source_tex;
+layout(r32f, binding = 0) writeonly uniform image2D g_target_image;
+
+uniform ivec2 g_source_size;
+uniform ivec2 g_target_size;
+uniform int g_source_level;
+uniform int g_copy_level;
+
+float load_source_depth(ivec2 pixel) {
+  pixel = clamp(pixel, ivec2(0), g_source_size - ivec2(1));
+  return texelFetch(g_source_tex, pixel, g_source_level).r;
+}
+
+void main() {
+  ivec2 target_pixel = ivec2(gl_GlobalInvocationID.xy);
+  if (any(greaterThanEqual(target_pixel, g_target_size))) {
+    return;
+  }
+
+  if (g_copy_level != 0) {
+    imageStore(g_target_image,
+               target_pixel,
+               vec4(load_source_depth(target_pixel), 0.0, 0.0, 0.0));
+    return;
+  }
+
+  // OpenGL mip dimensions use floor division. Map each destination texel back
+  // to its complete source interval so odd rows and columns are not dropped.
+  ivec2 source_begin =
+      (target_pixel * g_source_size) / g_target_size;
+  ivec2 source_end = ((target_pixel + ivec2(1)) * g_source_size +
+                      g_target_size - ivec2(1)) /
+                     g_target_size;
+  source_end = clamp(source_end, source_begin + ivec2(1), g_source_size);
+
+  float nearest_depth = 1.0;
+  for (int y = source_begin.y; y < source_end.y; ++y) {
+    for (int x = source_begin.x; x < source_end.x; ++x) {
+      nearest_depth = min(nearest_depth, load_source_depth(ivec2(x, y)));
+    }
+  }
+
+  imageStore(
+      g_target_image, target_pixel, vec4(nearest_depth, 0.0, 0.0, 0.0));
+}

@@ -1,1 +1,0 @@
-out\build\x64-Debug\src\11-blue-noise-sm\Debug\11_blue_noise_sm.exe

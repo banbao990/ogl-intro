@@ -10,6 +10,7 @@ struct TextureSettings {
   glm::vec4 border_color = glm::vec4(0.0, 0.0, 0.0, 0.0);
   GLenum min_filter = GL_LINEAR_MIPMAP_LINEAR;
   GLenum max_filter = GL_LINEAR;
+  bool generate_mipmaps = true;
 };
 
 class Texture2D {

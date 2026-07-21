@@ -47,7 +47,9 @@ void Texture2D::init(uint8_t *data,
                format,
                data_type,
                data);
-  glGenerateMipmap(GL_TEXTURE_2D);
+  if (settings->generate_mipmaps) {
+    glGenerateMipmap(GL_TEXTURE_2D);
+  }
 }
 
 void Texture2D::init(uint8_t *data,

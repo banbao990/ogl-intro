@@ -33,7 +33,10 @@ glm::mat4 FPSCamera::projection(float aspect) const {
 }
 
 void FPSCamera::draw_ui() {
-  ImGui::Checkbox("Enable Camera Control", &_enabled);
+  bool enabled = _enabled;
+  if (ImGui::Checkbox("Enable Camera Control", &enabled)) {
+    set_enabled(enabled);
+  }
   if (!_enabled) {
     ImGui::Text("Camera control disabled");
     return;
@@ -46,7 +49,9 @@ void FPSCamera::draw_ui() {
 }
 
 void FPSCamera::on_key(int key, int action) {
-  if (!_enabled)
+  // Always accept release events so disabling the camera or focusing UI while
+  // a movement key is held cannot leave movement latched on.
+  if (!_enabled && action != GLFW_RELEASE)
     return;
   if (action == GLFW_PRESS || action == GLFW_RELEASE) {
     bool pressed = (action == GLFW_PRESS);
@@ -74,9 +79,14 @@ void FPSCamera::on_key(int key, int action) {
 }
 
 void FPSCamera::on_mouse_button(int button, int action, int mods) {
-  if (!_enabled)
-    return;
   if (button == GLFW_MOUSE_BUTTON_LEFT) {
+    if (action == GLFW_RELEASE) {
+      _rotating = false;
+      _panning = false;
+      return;
+    }
+    if (!_enabled)
+      return;
     if (action == GLFW_PRESS) {
       if (mods & GLFW_MOD_SHIFT) {
         _panning = true;
@@ -84,9 +94,6 @@ void FPSCamera::on_mouse_button(int button, int action, int mods) {
         _rotating = true;
       }
       _first_mouse = true;
-    } else if (action == GLFW_RELEASE) {
-      _rotating = false;
-      _panning = false;
     }
   }
 }
@@ -145,6 +152,14 @@ void FPSCamera::update(float dt) {
 
 void FPSCamera::set_enabled(bool enabled) {
   _enabled = enabled;
+  if (!enabled) {
+    for (bool &key : _keys) {
+      key = false;
+    }
+    _rotating = false;
+    _panning = false;
+    _first_mouse = true;
+  }
 }
 
 bool FPSCamera::is_enabled() const {

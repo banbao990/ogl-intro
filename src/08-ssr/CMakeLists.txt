@@ -4,6 +4,8 @@ add_executable(${pro_name}
     main.cpp
     "material.hpp"
     "material.cpp"
+    "depth_pyramid.hpp"
+    "depth_pyramid.cpp"
     "../05-pbr/material.hpp"
     "../05-pbr/material.cpp"
     "water.cpp"

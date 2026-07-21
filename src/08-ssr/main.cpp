@@ -10,6 +10,7 @@
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+#include <common/camera/fps_camera.hpp>
 #include <glm/glm.hpp>
 #include <imgui/imgui.h>
 #include <iostream>
@@ -18,6 +19,7 @@
 #include <vector>
 
 #include "material.hpp"
+#include "depth_pyramid.hpp"
 #include "water.hpp"
 
 #define SSR_WINDOW_WIDTH 800
@@ -33,7 +35,9 @@ public:
 
 private:
   void init() override {
-    _camera = std::make_unique<ModelViewerCamera>();
+    _camera = std::make_unique<FPSCamera>(
+        glm::vec3(1.10f, 0.85f, 1.46f), 226.7f, -22.8f);
+    _camera->set_window(_window);
     _scene = std::make_unique<Gltf>("FlightHelmet/FlightHelmet.gltf");
     _tone_mapping_material = std::make_unique<ToneMappingMaterial>();
     _renderer = std::make_unique<Renderer>();
@@ -41,7 +45,7 @@ private:
     // water material
     _water_material = std::make_unique<WaterMaterial>();
     _water_geometry = std::make_unique<WaterGeometry>(1.0f, 1.0f, 100, 100);
-    _depth_material = std::make_unique<DepthMaterial>();
+    _depth_pyramid = std::make_unique<DepthPyramid>();
 
     auto init_mat = [&](PbrMaterial *pbr_mat, Gltf::Material *mat) {
 #define ASSIGN_TEXTURE(name)                                                   \
@@ -85,6 +89,41 @@ private:
 
     _env_brdf_material = std::make_unique<PrecomputeEnvBrdfMaterial>();
     calculate_env_brdf_lut();
+    _last_time = glfwGetTime();
+  }
+
+  void key_callback(int key, int scancode, int action, int mods) override {
+    (void)scancode;
+    (void)mods;
+    if (!ImGui::GetIO().WantCaptureKeyboard || action == GLFW_RELEASE) {
+      _camera->on_key(key, action);
+    }
+  }
+
+  void mouse_button_callback(int button, int action, int mods) override {
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS &&
+        !ImGui::GetIO().WantCaptureMouse) {
+      _camera_mouse_active = true;
+      _camera->on_mouse_button(button, action, mods);
+    } else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
+      if (_camera_mouse_active) {
+        _camera->on_mouse_button(button, action, mods);
+      }
+      _camera_mouse_active = false;
+    }
+  }
+
+  void cursor_position_callback(double xpos, double ypos) override {
+    if (_camera_mouse_active || !ImGui::GetIO().WantCaptureMouse) {
+      _camera->on_cursor_position(xpos, ypos);
+    }
+  }
+
+  void scroll_callback(double xoffset, double yoffset) override {
+    (void)xoffset;
+    if (!ImGui::GetIO().WantCaptureMouse) {
+      _camera->on_scroll(yoffset);
+    }
   }
 
   void draw_ui() {
@@ -158,6 +197,7 @@ private:
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
     glDepthFunc(GL_LEQUAL);
+    glClearDepth(1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     float aspect = (float)_screen_fb_width / (float)_screen_fb_height;
@@ -168,7 +208,6 @@ private:
     auto draw_mode =
         [&](PbrMaterial::Mode mode,
             const std::vector<std::unique_ptr<PbrMaterial>> &materials) {
-          return; // TODO: remove this line
           for (auto &draw : _scene->draws) {
             for (auto &prim : _scene->meshes[draw.index]) {
               auto *mat = materials[prim.material].get();
@@ -202,29 +241,13 @@ private:
       draw_mode(PbrMaterial::Opaque, _pbr_materials);
     }
     {
-      MICROPROFILE_SCOPEGPUI("Transparent Tint", 0x17AAFF);
-      MICROPROFILE_SCOPEI("Main", "Transparent Tint", 0x17AAFF);
-      glEnable(GL_BLEND);
-      // disable z-write for transparent objects
-      glDepthMask(GL_FALSE); // can be read, but not written
-      glBlendFunc(GL_ZERO, GL_SRC_COLOR);
-      // tint objects covered by transparent ones
-      draw_mode(PbrMaterial::Blend, _base_color_materials);
-    }
-
-    {
-      MICROPROFILE_SCOPEGPUI("Transparent Lit", 0xBB8122);
-      MICROPROFILE_SCOPEI("Main", "Transparent Lit", 0xBB8122);
-      glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-      draw_mode(PbrMaterial::Blend, _pbr_materials);
-    }
-
-    {
-      MICROPROFILE_SCOPEGPUI("Depth", 0x25FF22);
-      MICROPROFILE_SCOPEI("Main", "Depth", 0x25FF22);
-      // copy depth to new framebuffer
+      MICROPROFILE_SCOPEGPUI("Scene Snapshot", 0x25FF22);
+      MICROPROFILE_SCOPEI("Main", "Scene Snapshot", 0x25FF22);
       glBindFramebuffer(GL_READ_FRAMEBUFFER, _framebuffer->get());
-      glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _framebuffer_2_depth->get());
+      glBindFramebuffer(GL_DRAW_FRAMEBUFFER,
+                        _scene_snapshot_framebuffer->get());
+      glReadBuffer(GL_COLOR_ATTACHMENT0);
+      glDrawBuffer(GL_COLOR_ATTACHMENT0);
       glBlitFramebuffer(0,
                         0,
                         _screen_fb_width,
@@ -233,23 +256,15 @@ private:
                         0,
                         _screen_fb_width,
                         _screen_fb_height,
-                        GL_DEPTH_BUFFER_BIT,
+                        GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
                         GL_NEAREST);
+      glBindFramebuffer(GL_FRAMEBUFFER, _framebuffer->get());
     }
 
-    {
-      MICROPROFILE_SCOPEGPUI("Water Depth", 0x23FF23);
-      MICROPROFILE_SCOPEI("Main", "Water Depth", 0x23FF23);
-      glBindFramebuffer(GL_FRAMEBUFFER, _framebuffer_2_depth->get());
-
-      glDepthMask(GL_TRUE);
-      glDrawBuffer(GL_NONE);
-      _depth_material->model = _water_geometry->transform();
-      _depth_material->view = view;
-      _depth_material->projection = projection;
-      _depth_material->use();
-      _water_geometry->draw();
-      glDrawBuffer(GL_COLOR_ATTACHMENT0);
+    if (_water_material->uses_hiz()) {
+      MICROPROFILE_SCOPEGPUI("Hi-Z Build", 0x23AA23);
+      MICROPROFILE_SCOPEI("Main", "Hi-Z Build", 0x23AA23);
+      _depth_pyramid->build(_scene_depth_attachment.get());
     }
 
     {
@@ -257,22 +272,45 @@ private:
       MICROPROFILE_SCOPEI("Main", "Water", 0x22FF22);
       glBindFramebuffer(GL_FRAMEBUFFER, _framebuffer->get());
       glDisable(GL_CULL_FACE);
-      glDepthMask(GL_FALSE);
-      // glDisable(GL_DEPTH_TEST);
-      glBlendFunc(GL_ONE, GL_ZERO);
+      glEnable(GL_DEPTH_TEST);
+      glDepthFunc(GL_LEQUAL);
+      glDepthMask(GL_TRUE);
+      glDisable(GL_BLEND);
       _water_material->model = _water_geometry->transform();
       _water_material->view = view;
       _water_material->projection = projection;
-      _water_material->set_depth_tex(_depth_attachment_2_depth);
+      _water_material->set_scene_textures(_scene_color_attachment.get(),
+                                          _scene_depth_attachment.get());
+      _water_material->set_depth_pyramid(_depth_pyramid->texture(),
+                                         _depth_pyramid->max_mip_level());
       glm::vec3 light_dir_ws = polar_to_cartesian(_light_yaw, _light_pitch);
       glm::vec3 light_dir_vs = view * glm::vec4(light_dir_ws, 0.0f);
 
       _water_material->light_dir_vs = glm::normalize(light_dir_vs);
+      _water_material->light_radiance = _light_color * _light_strength;
+      _water_material->env_radiance = env_radiance;
       _water_material->use();
       _water_geometry->draw();
       glEnable(GL_CULL_FACE);
-      glEnable(GL_DEPTH_TEST);
       glCullFace(GL_BACK);
+    }
+
+    {
+      MICROPROFILE_SCOPEGPUI("Transparent Tint", 0x17AAFF);
+      MICROPROFILE_SCOPEI("Main", "Transparent Tint", 0x17AAFF);
+      glEnable(GL_BLEND);
+      glDepthMask(GL_FALSE);
+      glBlendFunc(GL_ZERO, GL_SRC_COLOR);
+      draw_mode(PbrMaterial::Blend, _base_color_materials);
+    }
+
+    {
+      MICROPROFILE_SCOPEGPUI("Transparent Lit", 0xBB8122);
+      MICROPROFILE_SCOPEI("Main", "Transparent Lit", 0xBB8122);
+      glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+      draw_mode(PbrMaterial::Blend, _pbr_materials);
+      glDepthMask(GL_TRUE);
+      glDisable(GL_BLEND);
     }
   }
 
@@ -288,48 +326,95 @@ private:
 
   void update_frame_buffer() {
     glfwGetFramebufferSize(_window, &_screen_fb_width, &_screen_fb_height);
+    if (_screen_fb_width <= 0 || _screen_fb_height <= 0) {
+      return;
+    }
     // make the size of offscreen buffer matches the screen's
     if (_color_attachment != nullptr &&
         _color_attachment->width() == _screen_fb_width &&
         _color_attachment->height() == _screen_fb_height) {
       return;
     }
-    // use HDR
+    _framebuffer.reset();
+    _scene_snapshot_framebuffer.reset();
+
+    TextureSettings color_settings{};
+    color_settings.wrap_s = GL_CLAMP_TO_EDGE;
+    color_settings.wrap_t = GL_CLAMP_TO_EDGE;
+    color_settings.min_filter = GL_LINEAR;
+    color_settings.max_filter = GL_LINEAR;
+    color_settings.generate_mipmaps = false;
+
+    TextureSettings depth_settings{};
+    depth_settings.wrap_s = GL_CLAMP_TO_EDGE;
+    depth_settings.wrap_t = GL_CLAMP_TO_EDGE;
+    depth_settings.min_filter = GL_NEAREST;
+    depth_settings.max_filter = GL_NEAREST;
+    depth_settings.generate_mipmaps = false;
+
+    // Main HDR target. The water writes here after sampling the snapshot.
     _color_attachment = std::make_unique<Texture2D>(nullptr,
                                                     GL_FLOAT,
                                                     _screen_fb_width,
                                                     _screen_fb_height,
                                                     GL_RGBA16F,
-                                                    GL_RGBA);
-    _depth_stencil_attachment =
-        std::make_unique<Texture2D>(nullptr,
-                                    GL_UNSIGNED_INT_24_8,
-                                    _screen_fb_width,
-                                    _screen_fb_height,
-                                    GL_DEPTH24_STENCIL8,
-                                    GL_DEPTH_STENCIL);
+                                                    GL_RGBA,
+                                                    &color_settings);
+    _depth_attachment = std::make_unique<Texture2D>(nullptr,
+                                                    GL_FLOAT,
+                                                    _screen_fb_width,
+                                                    _screen_fb_height,
+                                                    GL_DEPTH_COMPONENT32F,
+                                                    GL_DEPTH_COMPONENT,
+                                                    &depth_settings);
     Texture2D *color_attachments[] = {_color_attachment.get()};
     _framebuffer = std::make_unique<Framebuffer>(
         color_attachments,
         static_cast<uint32_t>(std::size(color_attachments)),
-        _depth_stencil_attachment.get());
+        _depth_attachment.get(),
+        true);
 
-    // depth
-    // [Banbao] only depth_stencil_attachment is invalid
-    _depth_attachment_2_depth = std::make_shared<Texture2D>(nullptr,
-                                                            GL_FLOAT,
-                                                            _screen_fb_width,
-                                                            _screen_fb_height,
-                                                            GL_DEPTH_COMPONENT,
-                                                            GL_DEPTH_COMPONENT);
-    _framebuffer_2_depth = std::make_unique<Framebuffer>(
-        nullptr, 0, _depth_attachment_2_depth.get(), true);
+    // Read-only pre-water snapshot used by refraction and both SSR paths.
+    _scene_color_attachment = std::make_unique<Texture2D>(nullptr,
+                                                          GL_FLOAT,
+                                                          _screen_fb_width,
+                                                          _screen_fb_height,
+                                                          GL_RGBA16F,
+                                                          GL_RGBA,
+                                                          &color_settings);
+    _scene_depth_attachment = std::make_unique<Texture2D>(nullptr,
+                                                          GL_FLOAT,
+                                                          _screen_fb_width,
+                                                          _screen_fb_height,
+                                                          GL_DEPTH_COMPONENT32F,
+                                                          GL_DEPTH_COMPONENT,
+                                                          &depth_settings);
+    Texture2D *snapshot_color_attachments[] = {_scene_color_attachment.get()};
+    _scene_snapshot_framebuffer = std::make_unique<Framebuffer>(
+        snapshot_color_attachments,
+        static_cast<uint32_t>(std::size(snapshot_color_attachments)),
+        _scene_depth_attachment.get(),
+        true);
+
+    _depth_pyramid->resize(static_cast<uint32_t>(_screen_fb_width),
+                           static_cast<uint32_t>(_screen_fb_height));
 
     _water_material->update_window_size(_screen_fb_width, _screen_fb_height);
   }
 
   void update() override {
+    double now = glfwGetTime();
+    float delta_time = static_cast<float>(now - _last_time);
+    _last_time = now;
+    if (delta_time > 0.1f) {
+      delta_time = 0.1f;
+    }
+    _camera->update(delta_time);
+
     update_frame_buffer();
+    if (_screen_fb_width <= 0 || _screen_fb_height <= 0) {
+      return;
+    }
     draw_ui();
     draw();
   }
@@ -347,11 +432,13 @@ private:
 
   int _screen_fb_width, _screen_fb_height;
   std::unique_ptr<Texture2D> _color_attachment{};
-  std::unique_ptr<Texture2D> _depth_stencil_attachment{};
+  std::unique_ptr<Texture2D> _depth_attachment{};
   std::unique_ptr<Framebuffer> _framebuffer{};
 
-  std::shared_ptr<Texture2D> _depth_attachment_2_depth{};
-  std::unique_ptr<Framebuffer> _framebuffer_2_depth{};
+  std::unique_ptr<Texture2D> _scene_color_attachment{};
+  std::unique_ptr<Texture2D> _scene_depth_attachment{};
+  std::unique_ptr<Framebuffer> _scene_snapshot_framebuffer{};
+  std::unique_ptr<DepthPyramid> _depth_pyramid{};
 
   // LUT (look up table) of pre-integrated BRDF
   std::unique_ptr<PrecomputeEnvBrdfMaterial> _env_brdf_material{};
@@ -359,12 +446,13 @@ private:
   std::unique_ptr<Texture2D> _env_brdf_lut{};
 
   std::unique_ptr<Renderer> _renderer;
-  std::unique_ptr<ModelViewerCamera> _camera;
+  std::unique_ptr<FPSCamera> _camera;
   std::unique_ptr<Gltf> _scene;
 
   std::unique_ptr<WaterMaterial> _water_material;
   std::unique_ptr<WaterGeometry> _water_geometry;
-  std::unique_ptr<DepthMaterial> _depth_material;
+  double _last_time{0.0};
+  bool _camera_mouse_active{false};
 };
 
 int main() {
