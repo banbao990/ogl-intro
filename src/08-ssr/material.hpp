@@ -116,6 +116,6 @@ private:
   float _far_plane{200.0f};
   uint32_t _window_width{1};
   uint32_t _window_height{1};
-  SSRMode _ssr_mode{SSRMode::PixelDDA};
+  SSRMode _ssr_mode{SSRMode::HiZ};
   DebugView _debug_view{DebugView::FinalComposite};
 };

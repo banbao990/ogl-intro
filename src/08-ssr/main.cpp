@@ -36,7 +36,7 @@ public:
 private:
   void init() override {
     _camera = std::make_unique<FPSCamera>(
-        glm::vec3(1.10f, 0.85f, 1.46f), 226.7f, -22.8f);
+        glm::vec3(1.10f, 0.51f, 0.67f), 214.1f, -21.6f);
     _camera->set_window(_window);
     _scene = std::make_unique<Gltf>("FlightHelmet/FlightHelmet.gltf");
     _tone_mapping_material = std::make_unique<ToneMappingMaterial>();

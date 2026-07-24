@@ -263,7 +263,7 @@ void WaterMaterial::reset_params() {
   _ssr_origin_bias = 0.005f;
   _ssr_max_steps = 4096;
   _ssr_binary_steps = 5;
-  _ssr_mode = SSRMode::PixelDDA;
+  _ssr_mode = SSRMode::HiZ;
   _debug_view = DebugView::FinalComposite;
 }
 
